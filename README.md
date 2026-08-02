@@ -1,6 +1,6 @@
 # Sales Intelligence Automation
 
-![Cover Image](https://github.com/anshudainsights3/Sales-Intelligence-Automation/blob/main/Cover%20Image.png)
+![Cover Image](https://github.com/anshudainsights3/Sales-Intelligence-Automation/blob/main/assets/Sales%20Analyst%20Cover.png)
 
 > **An AI-powered Sales Intelligence Automation built with n8n that transforms raw sales data into actionable business insights through automated KPI calculation, analytics generation, AI-driven reporting, and executive dashboards.**
 
