@@ -114,7 +114,7 @@ Outputs include:
 
 #  Workflow Overview
 
-![Workflow](https://github.com/anshudainsights3/Sales-Intelligence-Automation/blob/main/Automation%20Worklow.png)
+![Workflow](https://github.com/anshudainsights3/Sales-Intelligence-Automation/blob/main/assets/Automation%20Worklow.png)
 
 The workflow follows a modular pipeline consisting of three major stages.
 
