@@ -200,7 +200,7 @@ This separation of responsibilities improves maintainability, scalability, and f
 
 ---
 
-# 🛠️ Technology Stack
+#  Technology Stack
 
 | Layer | Technology |
 |--------|------------|
@@ -211,38 +211,6 @@ This separation of responsibilities improves maintainability, scalability, and f
 | Report Generation | PDF |
 | Data Processing | JSON |
 | Automation | n8n Workflows |
-
----
-
-# 📁 Repository Structure
-
-```
-sales-intelligence-automation/
-
-│── README.md
-│── LICENSE
-
-│
-├── workflow/
-│      webgrows_ai_sales_analyst_prototype.json
-│
-├── assets/
-│      cover.png
-│      problem.png
-│      workflow.png
-│      architecture.png
-│
-├── docs/
-│      architecture.md
-│      workflow-guide.md
-│      user-guide.md
-│      database-schema.md
-│
-├── database/
-│      database-schema.sql
-│
-└── sample-data/
-```
 
 ---
 
@@ -259,7 +227,7 @@ These documents provide detailed explanations of the system design, workflow exe
 
 ---
 
-# ⚙️ Installation
+#  Installation
 
 ## Prerequisites
 
@@ -288,7 +256,7 @@ git clone https://github.com/your-username/sales-intelligence-automation.git
 
 ---
 
-# 🔒 Security
+#  Security
 
 For security reasons, this repository does **not** include:
 
@@ -302,7 +270,7 @@ Replace all credentials with your own before executing the workflow.
 
 ---
 
-# 🚀 Future Improvements
+#  Future Improvements
 
 Potential future enhancements include:
 
@@ -319,7 +287,7 @@ Potential future enhancements include:
 
 ---
 
-# 💼 Skills Demonstrated
+#  Skills Demonstrated
 
 This project showcases practical experience in:
 
@@ -338,7 +306,7 @@ This project showcases practical experience in:
 
 ---
 
-# 🤝 Contributing
+#  Contributing
 
 Contributions, suggestions, and improvements are welcome.
 
@@ -346,13 +314,13 @@ If you identify a bug or have an idea for enhancing the workflow, feel free to o
 
 ---
 
-# 📄 License
+#  License
 
 This project is licensed under the **MIT License**.
 
 ---
 
-# 👨‍💻 Author
+#  Author
 
 **Anshu Rajput**
 
