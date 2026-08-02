@@ -20,7 +20,7 @@ The workflow is designed using a modular architecture that separates data proces
 
 #  Business Problem
 
-![Problem](https://github.com/anshudainsights3/Sales-Intelligence-Automation/blob/main/The%20Problem.png)
+![Problem](https://github.com/anshudainsights3/Sales-Intelligence-Automation/blob/main/assets/The%20Problem.png)
 
 Many organizations still rely on spreadsheets and manual reporting for sales analysis.
 
