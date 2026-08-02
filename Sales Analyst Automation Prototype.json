@@ -1,0 +1,608 @@
+{
+  "name": "WebGrows AI Sales Analyst - Prototype",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\norder_id,\norder_date,\ncustomer_id,\ncustomer_name,\nproduct_id,\nproduct_name,\ncategory,\nquantity,\nunit_price,\ndiscount,\ncost_price,\nstatus\nFROM fact_orders;",
+        "options": {}
+      },
+      "id": "load-sales-data",
+      "name": "Load Sales Data",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        220,
+        500
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "PLACEHOLDER_CREDENTIAL_ID",
+          "name": "sales_analyst"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const order = $json;\n\nreturn {\n  json: {\n    order_id: String(order.order_id),\n    date: new Date(order.order_date),\n    customer_id: String(order.customer_id),\n    customer: order.customer_name.trim(),\n    product_id: String(order.product_id),\n    product: order.product_name.trim(),\n    category: order.category.trim(),\n    quantity: Number(order.quantity),\n    price: Number(order.unit_price),\n    discount: Number(order.discount || 0),\n    cost: Number(order.cost_price),\n    status: order.status.toLowerCase()\n  }\n};"
+      },
+      "id": "normalize-sales-data",
+      "name": "Normalize Sales Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Calculate Total Revenue, Gross Revenue, Net Revenue, Discount\nlet grossRevenue = 0;\nlet totalDiscount = 0;\nlet netRevenue = 0;\n\nfor (const item of items) {\n  const o = item.json;\n\n  const gross = o.quantity * o.price;\n  grossRevenue += gross;\n  totalDiscount += o.discount;\n  netRevenue += gross - o.discount;\n}\n\nreturn [\n  {\n    json: {\n      gross_revenue: grossRevenue,\n      discount: totalDiscount,\n      net_revenue: netRevenue\n    }\n  }\n];"
+      },
+      "id": "revenue-kpis",
+      "name": "Revenue KPIs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Calculate Orders, Units, Completed, Cancelled, Returned\nlet orders = items.length;\nlet units = 0;\nlet completed = 0;\nlet cancelled = 0;\nlet returned = 0;\n\nfor (const item of items) {\n  const o = item.json;\n\n  units += o.quantity;\n  if (o.status === \"completed\") completed++;\n  if (o.status === \"cancelled\") cancelled++;\n  if (o.status === \"returned\") returned++;\n}\n\nreturn [\n  {\n    json: {\n      total_orders: orders,\n      units_sold: units,\n      completed_orders: completed,\n      cancelled_orders: cancelled,\n      returned_orders: returned\n    }\n  }\n];"
+      },
+      "id": "sales-kpis",
+      "name": "Sales KPIs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Calculate Gross Profit, Average Order Value, Margin\nlet revenue = 0;\nlet cost = 0;\nlet orders = items.length;\n\nfor (const item of items) {\n  const o = item.json;\n\n  revenue += (o.quantity * o.price) - o.discount;\n  cost += o.quantity * o.cost;\n}\n\nconst profit = revenue - cost;\nconst margin = revenue === 0 ? 0 : (profit / revenue) * 100;\nconst aov = orders === 0 ? 0 : revenue / orders;\n\nreturn [\n  {\n    json: {\n      gross_profit: profit,\n      gross_margin: margin,\n      average_order_value: aov\n    }\n  }\n];"
+      },
+      "id": "financial-kpis",
+      "name": "Financial KPIs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 3
+      },
+      "id": "merge-kpis",
+      "name": "Merge KPIs",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        880,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Generate product performance metrics: Revenue, Units Sold, Orders, Profit\nconst products = {};\n\nfor (const item of items) {\n  const o = item.json;\n\n  const revenue = (o.quantity * o.price) - o.discount;\n  const cost = o.quantity * o.cost;\n  const profit = revenue - cost;\n\n  if (!products[o.product]) {\n    products[o.product] = {\n      product: o.product,\n      category: o.category,\n      revenue: 0,\n      profit: 0,\n      units: 0,\n      orders: new Set()\n    };\n  }\n\n  products[o.product].revenue += revenue;\n  products[o.product].profit += profit;\n  products[o.product].units += o.quantity;\n  products[o.product].orders.add(o.order_id);\n}\n\nconst output = Object.values(products)\n  .map(product => ({\n    ...product,\n    orders: product.orders.size\n  }))\n  .sort((a, b) => b.revenue - a.revenue);\n\nreturn [\n  {\n    json: {\n      top_products: output.slice(0, 5),\n      bottom_products: output.slice(-5)\n    }\n  }\n];"
+      },
+      "id": "product-analytics",
+      "name": "Product Analytics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Group by Category and calculate Revenue, Profit, Units\nconst categories = {};\n\nfor (const item of items) {\n  const o = item.json;\n\n  const revenue = (o.quantity * o.price) - o.discount;\n  const profit = revenue - (o.quantity * o.cost);\n\n  if (!categories[o.category]) {\n    categories[o.category] = {\n      category: o.category,\n      revenue: 0,\n      profit: 0,\n      units: 0\n    };\n  }\n\n  categories[o.category].revenue += revenue;\n  categories[o.category].profit += profit;\n  categories[o.category].units += o.quantity;\n}\n\nconst output = Object.values(categories)\n  .sort((a, b) => b.revenue - a.revenue);\n\nreturn [\n  {\n    json: {\n      category_performance: output\n    }\n  }\n];"
+      },
+      "id": "category-analytics",
+      "name": "Category Analytics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        780
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Find Top Customers, Revenue per Customer, Orders, Average Order Value\nconst customers = {};\n\nfor (const item of items) {\n  const o = item.json;\n\n  const revenue = (o.quantity * o.price) - o.discount;\n\n  if (!customers[o.customer_id]) {\n    customers[o.customer_id] = {\n      customer_id: o.customer_id,\n      customer: o.customer,\n      revenue: 0,\n      orders: new Set()\n    };\n  }\n\n  customers[o.customer_id].revenue += revenue;\n  customers[o.customer_id].orders.add(o.order_id);\n}\n\nconst output = Object.values(customers)\n  .map(customer => {\n    customer.orders = customer.orders.size;\n    customer.average_order_value = customer.orders === 0\n      ? 0\n      : customer.revenue / customer.orders;\n    return customer;\n  })\n  .sort((a, b) => b.revenue - a.revenue);\n\nreturn [\n  {\n    json: {\n      top_customers: output.slice(0, 10)\n    }\n  }\n];"
+      },
+      "id": "customer-analytics",
+      "name": "Customer Analytics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        940
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 3
+      },
+      "id": "merge-analytics",
+      "name": "Merge Analytics",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        880,
+        780
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 2
+      },
+      "id": "build-analytics-json",
+      "name": "Build Analytics JSON",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1100,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Here is the analytics dataset.\n\n{{$json}}\n\nGenerate a detailed business analysis.",
+        "hasOutputParser": false,
+        "messages": {
+          "messageValues": [
+            {
+              "type": "SystemMessagePromptTemplate",
+              "message": "You are a Senior Ecommerce Sales Analyst.\n\nYour responsibility is to interpret business data exactly like an experienced consultant.\n\nYou NEVER calculate metrics.\n\nYou ONLY interpret them.\n\nUse the analytics provided.\n\nExplain:\n\n\u2022 Business performance\n\n\u2022 Revenue health\n\n\u2022 Profitability\n\n\u2022 Customer behaviour\n\n\u2022 Product performance\n\n\u2022 Category performance\n\n\u2022 Risks\n\n\u2022 Opportunities\n\n\u2022 Recommendations\n\nAlways answer professionally.\n\nNever invent numbers.\n\nNever change KPI values.\n\nIf data is unavailable say so.\n\nUse markdown formatting.\n\nMaximum 500 words."
+            }
+          ]
+        }
+      },
+      "id": "ai-sales-analyst",
+      "name": "AI Sales Analyst",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        1320,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "openai-chat-model",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        1320,
+        720
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "PLACEHOLDER_CREDENTIAL_ID",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "conv-response-type",
+              "name": "type",
+              "value": "chat",
+              "type": "string"
+            },
+            {
+              "id": "conv-response-answer",
+              "name": "answer",
+              "value": "={{$json.message.content}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "conversational-response",
+      "name": "Conversational Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1540,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Prepare executive summary section from AI output\nreturn [\n  {\n    json: {\n      executive_summary: items[0].json.message.content\n    }\n  }\n];"
+      },
+      "id": "executive-summary",
+      "name": "Executive Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        660
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 2
+      },
+      "id": "merge-ai-results",
+      "name": "Merge AI Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1760,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Assemble the final HTML sales report using KPI + Analytics + AI results\nconst ai = items[0].json; // { chat, summary }\nconst analytics = $('Build Analytics JSON').first().json;\n\nconst kpi = {\n  gross_revenue: analytics.gross_revenue,\n  net_revenue: analytics.net_revenue,\n  gross_profit: analytics.gross_profit,\n  gross_margin: analytics.gross_margin,\n  average_order_value: analytics.average_order_value,\n  total_orders: analytics.total_orders,\n  units_sold: analytics.units_sold,\n  completed_orders: analytics.completed_orders,\n  cancelled_orders: analytics.cancelled_orders,\n  returned_orders: analytics.returned_orders\n};\n\nconst topProducts = analytics.top_products || [];\nconst categoryPerformance = analytics.category_performance || [];\nconst topCustomers = analytics.top_customers || [];\n\nfunction renderProductRows(rows) {\n  return rows.map(p => `\n    <tr>\n      <td>${p.product}</td>\n      <td>${p.category}</td>\n      <td>${p.revenue}</td>\n      <td>${p.profit}</td>\n      <td>${p.units}</td>\n      <td>${p.orders}</td>\n    </tr>\n  `).join('');\n}\n\nfunction renderCategoryRows(rows) {\n  return rows.map(c => `\n    <tr>\n      <td>${c.category}</td>\n      <td>${c.revenue}</td>\n      <td>${c.profit}</td>\n      <td>${c.units}</td>\n    </tr>\n  `).join('');\n}\n\nfunction renderCustomerRows(rows) {\n  return rows.map(c => `\n    <tr>\n      <td>${c.customer}</td>\n      <td>${c.revenue}</td>\n      <td>${c.orders}</td>\n      <td>${c.average_order_value}</td>\n    </tr>\n  `).join('');\n}\n\nconst html = `\n<html>\n<head>\n  <title>Sales Report</title>\n  <style>\n    body { font-family: Arial, sans-serif; margin: 40px; color: #222; }\n    h1 { color: #1a1a1a; }\n    h2 { color: #333; border-bottom: 1px solid #ddd; padding-bottom: 4px; }\n    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }\n    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }\n    th { background-color: #f4f4f4; }\n    .kpi-grid { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; }\n    .kpi-box { border: 1px solid #ddd; border-radius: 6px; padding: 12px 16px; min-width: 160px; }\n    .kpi-box .label { font-size: 12px; color: #666; }\n    .kpi-box .value { font-size: 20px; font-weight: bold; }\n    hr { border: none; border-top: 1px solid #ddd; margin: 24px 0; }\n  </style>\n</head>\n<body>\n  <h1>AI Sales Analyst</h1>\n\n  <h2>KPIs</h2>\n  <div class=\"kpi-grid\">\n    <div class=\"kpi-box\"><div class=\"label\">Gross Revenue</div><div class=\"value\">${kpi.gross_revenue}</div></div>\n    <div class=\"kpi-box\"><div class=\"label\">Net Revenue</div><div class=\"value\">${kpi.net_revenue}</div></div>\n    <div class=\"kpi-box\"><div class=\"label\">Gross Profit</div><div class=\"value\">${kpi.gross_profit}</div></div>\n    <div class=\"kpi-box\"><div class=\"label\">Gross Margin</div><div class=\"value\">${kpi.gross_margin}%</div></div>\n    <div class=\"kpi-box\"><div class=\"label\">Average Order Value</div><div class=\"value\">${kpi.average_order_value}</div></div>\n    <div class=\"kpi-box\"><div class=\"label\">Total Orders</div><div class=\"value\">${kpi.total_orders}</div></div>\n    <div class=\"kpi-box\"><div class=\"label\">Units Sold</div><div class=\"value\">${kpi.units_sold}</div></div>\n    <div class=\"kpi-box\"><div class=\"label\">Completed Orders</div><div class=\"value\">${kpi.completed_orders}</div></div>\n    <div class=\"kpi-box\"><div class=\"label\">Cancelled Orders</div><div class=\"value\">${kpi.cancelled_orders}</div></div>\n    <div class=\"kpi-box\"><div class=\"label\">Returned Orders</div><div class=\"value\">${kpi.returned_orders}</div></div>\n  </div>\n\n  <hr>\n\n  <h2>Top Products</h2>\n  <table>\n    <tr><th>Product</th><th>Category</th><th>Revenue</th><th>Profit</th><th>Units</th><th>Orders</th></tr>\n    ${renderProductRows(topProducts)}\n  </table>\n\n  <hr>\n\n  <h2>Top Categories</h2>\n  <table>\n    <tr><th>Category</th><th>Revenue</th><th>Profit</th><th>Units</th></tr>\n    ${renderCategoryRows(categoryPerformance)}\n  </table>\n\n  <hr>\n\n  <h2>Top Customers</h2>\n  <table>\n    <tr><th>Customer</th><th>Revenue</th><th>Orders</th><th>Average Order Value</th></tr>\n    ${renderCustomerRows(topCustomers)}\n  </table>\n\n  <hr>\n\n  <h2>AI Executive Summary</h2>\n  <div>${ai.summary}</div>\n\n  <hr>\n\n  <h2>Recommendations</h2>\n  <div>${ai.chat}</div>\n\n</body>\n</html>\n`;\n\nreturn [\n  {\n    json: {\n      html\n    }\n  }\n];"
+      },
+      "id": "generate-html-dashboard",
+      "name": "Generate HTML Dashboard",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1980,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:3000/forms/chromium/convert/html",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "files",
+              "inputDataFieldName": "index.html"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data"
+            }
+          }
+        }
+      },
+      "id": "html-to-pdf",
+      "name": "HTML \u2192 PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2200,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "sendTo": "={{ $json.recipientEmail }}",
+        "subject": "Weekly Sales Performance Report",
+        "message": "Hello,\\n\\nAttached is your AI generated sales analysis report.\\n\\nRegards,\\nWebGrows AI",
+        "options": {
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {
+                "property": "data"
+              }
+            ]
+          }
+        }
+      },
+      "id": "send-email",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2420,
+        540
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "PLACEHOLDER_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Load Sales Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Sales Data": {
+      "main": [
+        [
+          {
+            "node": "Normalize Sales Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Sales Data": {
+      "main": [
+        [
+          {
+            "node": "Revenue KPIs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Sales KPIs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Financial KPIs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Product Analytics",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Category Analytics",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Customer Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Revenue KPIs": {
+      "main": [
+        [
+          {
+            "node": "Merge KPIs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sales KPIs": {
+      "main": [
+        [
+          {
+            "node": "Merge KPIs",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Financial KPIs": {
+      "main": [
+        [
+          {
+            "node": "Merge KPIs",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Product Analytics": {
+      "main": [
+        [
+          {
+            "node": "Merge Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Category Analytics": {
+      "main": [
+        [
+          {
+            "node": "Merge Analytics",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Customer Analytics": {
+      "main": [
+        [
+          {
+            "node": "Merge Analytics",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Merge KPIs": {
+      "main": [
+        [
+          {
+            "node": "Build Analytics JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Analytics": {
+      "main": [
+        [
+          {
+            "node": "Build Analytics JSON",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Build Analytics JSON": {
+      "main": [
+        [
+          {
+            "node": "AI Sales Analyst",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Sales Analyst",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Sales Analyst": {
+      "main": [
+        [
+          {
+            "node": "Conversational Response",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Executive Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conversational Response": {
+      "main": [
+        [
+          {
+            "node": "Merge AI Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Executive Summary": {
+      "main": [
+        [
+          {
+            "node": "Merge AI Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge AI Results": {
+      "main": [
+        [
+          {
+            "node": "Generate HTML Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate HTML Dashboard": {
+      "main": [
+        [
+          {
+            "node": "HTML \u2192 PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML \u2192 PDF": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}
