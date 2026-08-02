@@ -164,7 +164,7 @@ Includes:
 
 #  System Architecture
 
-![Architecture](assets/architecture.png)
+![Architecture](https://github.com/anshudainsights3/Sales-Intelligence-Automation/blob/main/Architecture%20(2).png)
 
 The architecture follows a modular design where each component is responsible for a single business capability.
 
