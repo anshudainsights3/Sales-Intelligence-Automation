@@ -1,4 +1,4 @@
-# 📈 Sales Intelligence Automation
+# Sales Intelligence Automation
 
 ![Cover Image](https://github.com/anshudainsights3/Sales-Intelligence-Automation/blob/main/Cover%20Image.png)
 
@@ -6,7 +6,7 @@
 
 ---
 
-# 🚀 Overview
+#  Overview
 
 Sales teams often spend hours exporting spreadsheets, calculating KPIs, creating dashboards, and preparing reports before they can make informed business decisions. These repetitive manual processes delay insights and reduce operational efficiency.
 
@@ -18,7 +18,7 @@ The workflow is designed using a modular architecture that separates data proces
 
 ---
 
-# 🚨 Business Problem
+#  Business Problem
 
 ![Problem](assets/problem.png)
 
@@ -39,7 +39,7 @@ The objective of this automation is to eliminate repetitive reporting tasks and 
 
 ---
 
-# ✅ Solution Overview
+# Solution Overview
 
 The workflow automates the complete sales intelligence pipeline by converting raw sales data into executive-ready reports.
 
@@ -60,9 +60,9 @@ Core capabilities include:
 
 ---
 
-# ✨ Key Features
+#  Key Features
 
-## 📊 Sales Analytics
+##  Sales Analytics
 
 - Revenue Analysis
 - Sales Performance Metrics
@@ -74,7 +74,7 @@ Core capabilities include:
 
 ---
 
-## 🤖 AI Sales Analyst
+##  AI Sales Analyst
 
 The workflow utilizes an AI-powered Sales Analyst to transform structured business metrics into easy-to-understand executive insights.
 
@@ -89,7 +89,7 @@ The AI generates:
 
 ---
 
-## 📑 Automated Reporting
+##  Automated Reporting
 
 Reports are generated automatically without manual intervention.
 
@@ -101,7 +101,7 @@ Outputs include:
 
 ---
 
-## ⚡ Workflow Automation
+## Workflow Automation
 
 - Automated Data Processing
 - Parallel KPI Calculation
@@ -112,13 +112,13 @@ Outputs include:
 
 ---
 
-# ⚙️ Workflow Overview
+#  Workflow Overview
 
 ![Workflow](assets/workflow.png)
 
 The workflow follows a modular pipeline consisting of three major stages.
 
-### 1️⃣ Data Processing Layer
+### 1️. Data Processing Layer
 
 Responsible for preparing sales information for analysis.
 
@@ -131,7 +131,7 @@ Functions include:
 
 ---
 
-### 2️⃣ Analytics Engine
+### 2️. Analytics Engine
 
 Processes normalized data into business intelligence.
 
@@ -147,7 +147,7 @@ Includes:
 
 ---
 
-### 3️⃣ AI Reporting Engine
+### 3️. AI Reporting Engine
 
 Transforms analytics into executive reports.
 
@@ -162,7 +162,7 @@ Includes:
 
 ---
 
-# 🏗️ System Architecture
+#  System Architecture
 
 ![Architecture](assets/architecture.png)
 
@@ -246,7 +246,7 @@ sales-intelligence-automation/
 
 ---
 
-# 📚 Documentation
+#  Documentation
 
 Additional documentation is available within the **docs** directory.
 
